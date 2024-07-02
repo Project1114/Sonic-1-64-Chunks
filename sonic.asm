@@ -2005,12 +2005,12 @@ Tit_LoadText:
 		move.w	(v_bgscreenposy).w,d5			; MJ: load BG Y position
 		bsr.w	LoadBGTilesFromStart			; MJ: draw BG blocks
 		bsr.w	UpdateTileMap
-		lea	(v_lvllayout).l,a1
+		lea	(v_lvllayout+$5000).l,a1
 		lea	(Eni_Title).l,a0 ; load	title screen mappings
 		move.w	#0,d0
 		bsr.w	EniDec
 
-		copyTilemap	v_lvllayout,$C206,$21,$15
+		copyTilemap	(v_lvllayout+$5000),$C206,$21,$15
 
 		locVRAM	ArtTile_Level*$20
 		lea	(Nem_GHZ_1st).l,a0 ; load GHZ patterns
