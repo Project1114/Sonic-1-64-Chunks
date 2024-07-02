@@ -11,19 +11,11 @@ v_lvllayout:		ds.b	$8000		; level and background layouts
 v_collision1:		ds.b	$300
 v_collision2:		ds.b	$300
 
-			ds.b	$E00		; unused
+			ds.b	$1200		; unused
 
-vHBufferFG:		ds.b $100				; Entire Buffer
-vVBufferFG:		ds.b $100				; Entire Buffer
-vVBufferFGA	=	vVBufferFG				; First half of buffer
-vVBufferFGB	=	vVBufferFG+$80				; Second half of buffer
-
-vHBufferBG:		ds.b $100				; Entire Buffer
-vVBufferBG:		ds.b $100				; Entire Buffer
-vVBufferBGA	=	vVBufferBG				; First half of buffer
-vVBufferBGB	=	vVBufferBG+$80				; Second half of buffer
-
-vVBufferBGDMA:		ds.b $100				; Entire Buffer
+vTileBuffer:		ds.b $100				; Entire Buffer
+vTileBufferA	=	vTileBuffer				; First half of buffer
+vTileBufferB	=	vTileBuffer+$80				; Second half of buffer
 
 v_ngfx_buffer:		ds.b	$200		; Nemesis graphics decompression buffer
 v_ngfx_buffer_end:
@@ -458,16 +450,7 @@ v_oscillate:		ds.w	1		; oscillation bitfield
 v_timingandscreenvariables:
 v_timingvariables:
 			ds.b	$40		; values which oscillate - for swinging platforms, et al
-
-vDrawFGX:		ds.w 1
-vDrawFGY:		ds.w 1
-vDrawBGY:		ds.w 1
-vHDrawFG:		ds.w 1
-vVDrawFG:		ds.w 1
-vHDrawBG:		ds.w 1
-vVDrawBG:		ds.w 1
-
-			ds.b	$12		; unused
+			ds.b	$20		; unused
 v_ani0_time:		ds.b	1		; synchronised sprite animation 0 - time until next frame (used for synchronised animations)
 v_ani0_frame:		ds.b	1		; synchronised sprite animation 0 - current frame
 v_ani1_time:		ds.b	1		; synchronised sprite animation 1 - time until next frame

@@ -18,8 +18,8 @@ Sonic_Loops:
 		lea	(v_lvllayout).l,a1		; grab level layout
 		moveq	#-1,d0				; make upper word of d0 $FFFF
 		move.w	d2,d0				; make d0 the y position
-		asr.w	#5,d0				; divide y by $10
-		andi.w	#$7E,d0				; make it multiples of 4 (equivalent to dividing by $40 and multiplying by 4)
+		lsr.w	#4,d0				; divide y by $10
+		andi.w	#$FC,d0				; make it multiples of 4 (equivalent to dividing by $40 and multiplying by 4)
 	;	move.w	(Layout_row_index_mask).w,d1
 	;	bne.s	.addit
 	;	andi.w	#$FF,d0
@@ -34,7 +34,7 @@ Sonic_Loops:
 	;	add.w	d1,d0
 
 	.skip:
-		move.w	4(a1,d0.w),d0			; get the location of the section of chunks in the layout on the y level
+		move.w	8(a1,d0.w),d0			; get the location of the section of chunks in the layout on the y level
 		tst.w	d0
 		bne.s	.valid
 		move.w	#$108,d0

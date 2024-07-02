@@ -486,7 +486,6 @@ VBla_14:
 VBla_04:
 		bsr.w	sub_106E
 		bsr.w	LoadTilesAsYouMove_BGOnly
-		bsr	UpdateTileMap
 		bsr.w	sub_1642
 		tst.w	(v_demolength).w
 		beq.w	.end
@@ -550,7 +549,6 @@ VBla_08:
 
 Demo_Time:
 		bsr.w	LoadTilesAsYouMove
-		bsr	UpdateTileMap
 		jsr	(AnimateLevelGfx).l
 		jsr	(HUD_Update).l
 		bsr.w	ProcessDPLC2
@@ -617,7 +615,6 @@ VBla_0C:
 		movem.l	(v_fg_scroll_flags).w,d0-d1
 		movem.l	d0-d1,(v_fg_scroll_flags_dup).w
 		bsr.w	LoadTilesAsYouMove
-		bsr	UpdateTileMap
 		jsr	(AnimateLevelGfx).l
 		jsr	(HUD_Update).l
 		bsr.w	sub_1642
@@ -1999,12 +1996,11 @@ Tit_LoadText:
 		bsr.w	PaletteFadeOut
 		disable_ints
 		bsr.w	ClearScreen
-		lea	(v_lvllayout+$84).l,a4			; MJ: load BG layout space
-		move.w	#$6000,d6				; MJ: prepare VRAM plane address
+		lea	(v_lvllayout+2).l,a4			; MJ: load BG layout space
+		move.w	#vram_bg-$8000,d6				; prepare VRAM plane address
 		move.w	(v_bgscreenposx).w,d4			; MJ: load BG X position
 		move.w	(v_bgscreenposy).w,d5			; MJ: load BG Y position
 		bsr.w	LoadBGTilesFromStart			; MJ: draw BG blocks
-		bsr.w	UpdateTileMap
 		lea	(v_lvllayout+$5000).l,a1
 		lea	(Eni_Title).l,a0 ; load	title screen mappings
 		move.w	#0,d0
@@ -2695,7 +2691,6 @@ Level_SkipTtlCard:
 		bset	#2,(v_fg_scroll_flags).w
 		bsr.w	LevelDataLoad ; load block mappings and palettes
 		bsr.w	LoadTilesFromStart
-		bsr.w	UpdateTileMap
 		jsr	(ConvertCollisionArray).l
 		bsr.w	ColIndexLoad
 		bsr.w	LZWaterFeatures
@@ -3635,7 +3630,6 @@ End_LoadData:
 		bset	#2,(v_fg_scroll_flags).w
 		bsr.w	LevelDataLoad
 		bsr.w	LoadTilesFromStart
-		bsr.w	UpdateTileMap
 		lea	(Col_GHZ_1).l,a0 ; MJ: Set first collision for ending
 		lea	(v_collision1).w,a1
 		bsr.w	KosDec

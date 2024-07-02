@@ -17,13 +17,14 @@ a2_LT_TileMapLine1:	reg	a2
 a3_LT_TileMapLine2:	reg	a3
 a3_LT_Scanline:		reg	a3
 a4_LT_LayoutAddr:	reg	a4
-a5_LT_TileMapBackup:	reg	a5
 
 ; ===========================================================================
 ; ---------------------------------------------------------------------------
 ; Subroutine to	draw only the BG void tiles
 ; ---------------------------------------------------------------------------
 LoadTilesAsYouMove_BGOnly:
+		lea	(vdp_data_port).l,a6
+		lea	4(a6),a5
 		moveq	#$FFFFFFF0,d3_LT_NegTen			; prepare -10
 		bra	BGH_Draw				; continue
 ; ===========================================================================
@@ -31,7 +32,10 @@ LoadTilesAsYouMove_BGOnly:
 ; Drawing the FG Tiles in void space
 ; ---------------------------------------------------------------------------
 LoadTilesAsYouMove:
+		lea	(vdp_data_port).l,a6
+		lea	4(a6),a5
 		lea	(v_lvllayout).l,a4_LT_LayoutAddr	; load FG layout space
+		move.w	#vram_fg-$8000,d6				; prepare VRAM plane address
 		moveq	#$FFFFFFF0,d3_LT_NegTen			; prepare -10
 ; ---------------------------------------------------------------------------
 ; FG Horizontal
@@ -45,15 +49,12 @@ LoadTilesAsYouMove:
 		move.w	(vLastFGYPos).w,d1			; load last Y position
 		and.w	d3_LT_NegTen,d1				; keep in range
 		move.w	d0,(vLastFGYPos).w			; update new last Y position
-		sub.w	d1,d0					; minus last from new
-		move.w	d0,(vHDrawFG).w
+		sub.w	d1,d0		
 		beq	FGH_NoDraw				; if it hasn't moved, branch
 		bmi	FGH_UpDraw				; if it's moved up, branch
 		addi.w	#$00F0,d5_LT_PosY			; increase Y down into lower void space
 
 FGH_UpDraw:
-		lea	(vHBufferFG).l,a5_LT_TileMapBackup	; load beginning of tile buffer
-		move.w	d5_LT_PosY,(vDrawFGY).w
 		moveq	#$00,d7_LT_BlockRemain			; clear d7
 		move.b	(v_bg1_xblock).w,d7_LT_BlockRemain	; load number of horizontal blocks to draw
 		bsr	HorizLoadBlocks				; draw horizontal blocks
@@ -72,14 +73,11 @@ FGH_NoDraw:
 		and.w	d3_LT_NegTen,d1				; keep in range
 		move.w	d0,(vLastFGXPos).w			; update new last X position
 		sub.w	d1,d0					; minus last from new
-		move.w	d0,(vVDrawFG).w
 		beq	FGV_NoDraw				; if it hasn't moved, branch
 		bmi	FGV_LeftDraw				; if it's moved right, branch
 		addi.w	#$0150,d4_LT_PosX			; increase X down into right void space
 
 FGV_LeftDraw:
-		lea	(vVBufferFG).l,a5_LT_TileMapBackup	; load beginning of tile buffer
-		move.w	d4_LT_PosX,(vDrawFGX).w
 		moveq	#$00,d7_LT_BlockRemain			; clear d7
 		move.b	(v_bg1_yblock).w,d7_LT_BlockRemain	; load number of vertical blocks to draw
 		bsr	VertiLoadBlocks				; draw vertical blocks
@@ -89,7 +87,8 @@ FGV_NoDraw:
 ; Drawing the BG Tiles in void space
 ; ---------------------------------------------------------------------------
 BGH_Draw:
-		lea	(v_lvllayout+$84).l,a4_LT_LayoutAddr	; load BG layout space
+		lea	(v_lvllayout+2).l,a4_LT_LayoutAddr	; load BG layout space
+		move.w	#vram_bg-$8000,d6				; prepare VRAM plane address
 ; ---------------------------------------------------------------------------
 ; BG Horizontal
 ; ---------------------------------------------------------------------------
@@ -103,8 +102,7 @@ BGH_Draw:
 		move.w	(vLastBGYPos).w,d1			; load last Y position
 		and.w	d3_LT_NegTen,d1				; keep in range
 		move.w	d0,(vLastBGYPos).w			; update new last Y position
-		sub.w	d1,d0					; minus last from new
-		move.w	d0,(vHDrawBG).w
+		sub.w	d1,d0		
 		beq	BGH_NoDraw				; if it hasn't moved, branch
 		bmi	BGH_UpDraw				; if it's moved up, branch
 		addi.w	#$00F0,d5_LT_PosY			; increase Y down into lower void space
@@ -113,8 +111,6 @@ BGH_Draw:
 		add.w	d3_LT_NegTen,d4_LT_PosX			; move X back into void space
 
 BGH_UpDraw:
-		lea	(vHBufferBG).l,a5_LT_TileMapBackup	; load beginning of tile buffer
-		move.w	d5_LT_PosY,(vDrawBGY).w
 		moveq	#$00,d7_LT_BlockRemain			; clear d7
 		move.b	(v_bg2_xblock).w,d7_LT_BlockRemain	; load number of horizontal blocks to draw
 		bsr	HorizLoadBlocks				; draw horizontal blocks
@@ -128,14 +124,12 @@ BGH_NoDraw:
 		add.w	d3_LT_NegTen,d5_LT_PosY					; move Y back into void space
 		move.w	(vLastBGXPos).w,d1			; load last X position
 		move.w	d0,(vLastBGXPos).w			; update new last X position
-		sub.w	d1,d0					; minus last from new
-		move.w	d0,(vVDrawBG).w
+		sub.w	d1,d0		
 		beq	BGV_NoDraw				; if it hasn't moved, branch
 		bmi	BGV_LeftDraw				; if it's moved right, branch
 		move.w	#$0150,d3_LT_NegTen			; set void space side to right
 
 BGV_LeftDraw:
-		lea	(vVBufferBG).l,a2_LT_TileMapLine1		; load beginning of tile buffer
 		lea	(v_hscrolltablebuffer+2).w,a3_LT_Scanline		; load scroll address
 		moveq	#$00,d7_LT_BlockRemain			; clear d7
 		move.b	(v_bg2_yblock).w,d7_LT_BlockRemain	; load number of vertical blocks to draw
@@ -149,10 +143,12 @@ BGV_NoDraw:
 ; ---------------------------------------------------------------------------
 LoadTilesFromStart:
 		lea	(v_lvllayout).l,a4_LT_LayoutAddr	; load FG layout space
+		move.w	#vram_fg-$8000,d6				; prepare VRAM plane address
 		move.w	(v_screenposx).w,d4_LT_PosX				; load X position
 		move.w	(v_screenposy).w,d5_LT_PosY				; load Y position
 		bsr	LoadFGTilesFromStart			; draw FG
-		lea	(v_lvllayout+$84).l,a4_LT_LayoutAddr	; load BG layout space
+		lea	(v_lvllayout+2).l,a4_LT_LayoutAddr	; load BG layout space
+		move.w	#vram_bg-$8000,d6				; prepare VRAM plane address
 		move.w	(v_bgscreenposx).w,d4_LT_PosX			; load BG X position
 		move.w	(v_bgscreenposy).w,d5_LT_PosY			; load BG Y position
 
@@ -160,11 +156,12 @@ LoadTilesFromStart:
 ; Subroutine to	draw only the entire BG tiles
 ; ---------------------------------------------------------------------------
 LoadBGTilesFromStart:
-		lea	(vdp_control_port).l,a6
+		lea	(vdp_data_port).l,a6
+		lea	4(a6),a5
 		moveq	#$FFFFFFF0,d3_LT_NegTen				; prepare -10
 		add.w	d3_LT_NegTen,d4_LT_PosX					; move X and Y positions back into void space
 		add.w	d3_LT_NegTen,d5_LT_PosY					; ''
-		moveq	#$10,d7					; set number of horizontal lines to draw
+		moveq	#$F,d7					; set number of horizontal lines to draw
 		lea	(v_hscrolltablebuffer+2).w,a3_LT_Scanline		; load scroll address
 		move.b	d5_LT_PosY,d0					; load Y position
 		andi.w	#$000F,d0				; get only within the block position
@@ -172,7 +169,6 @@ LoadBGTilesFromStart:
 		add.b	d0,d0					; ''
 		move.w	(a3_LT_Scanline),d4_LT_PosX					; load first scanline position (for first block only)
 		suba.w	d0,a3_LT_Scanline					; shift scroll buffer address to correct beginning scanline of blocks
-		lea	(vHBufferBG).l,a5_LT_TileMapBackup	; load beginning of tile buffer
 		bra	DABG_FirstBlock
 
 DABG_NextLine:
@@ -185,17 +181,6 @@ DABG_FirstBlock:
 		movem.w	d4_LT_PosX/d7/a3_LT_Scanline,-(sp)	; store X pos and counter
 		moveq	#$1F,d7					; set repeat times (number of blocks) (20 blocks)
 		bsr	HorizLoadBlocks				; draw horizontal blocks
-
-		move.l	#$977F0000,d0				; prepare DMA source value
-		move.w	d5_LT_PosY,d0				; load Y position
-		andi.w	#$00F0,d0				; keep in range
-		lsl.w	#$04,d0					; multiply by 10 (every 10 pixels is VRAM 0100+)
-		or.w	#vram_bg-$8000,d0			; set VRAM write bit
-		move.l	#((((((HBufferSize*$02)/$02)<<$08)&$FF0000)+(((HBufferSize*$02)/$02)&$FF))+$94009300),(a6) ; set DMA size
-		move.l	#((((((vHBufferBG&$FFFFFF)/$02)<<$08)&$FF0000)+(((vHBufferBG&$FFFFFF)/$02)&$FF))+$96009500),(a6) ; set DMA Source
-		move.l	d0,(a6)					; set DMA source/destination
-		move.w	#$0083,(a6)				; set DMA destination
-
 		movem.w	(sp)+,d4_LT_PosX/d7/a3_LT_Scanline	; restore X pos and counter
 		sub.w	d3_LT_NegTen,d5_LT_PosY			; increase Y pos down
 		dbf	d7,DABG_NextLine			; repeat til all lines are done
@@ -204,28 +189,17 @@ DABG_FirstBlock:
 ; Subroutine to	draw only the entire FG tiles
 ; ---------------------------------------------------------------------------
 LoadFGTilesFromStart:
-		lea	(vdp_control_port).l,a6
+		lea	(vdp_data_port).l,a6
+		lea	4(a6),a5
 		moveq	#$FFFFFFF0,d3_LT_NegTen				; prepare -10
 		add.w	d3_LT_NegTen,d4_LT_PosX					; move X and Y positions back into void space
 		add.w	d3_LT_NegTen,d5_LT_PosY					; ''
-		moveq	#$10,d7					; set number of horizontal lines to draw
-		lea	(vHBufferFG).w,a5_LT_TileMapBackup	; load beginning of tile buffer
+		moveq	#$0F,d7					; set number of horizontal lines to draw
 
 DAFG_NextLine:
 		movem.w	d4_LT_PosX/d7,-(sp)				; store X pos and counter
 		moveq	#$1F,d7					; set repeat times (number of blocks) (20 blocks)
 		bsr	HorizLoadBlocks				; draw horizontal blocks
-
-		move.l	#$977F0000,d0				; prepare DMA source value
-		move.w	d5_LT_PosY,d0					; load Y position
-		andi.w	#$00F0,d0				; keep in range
-		lsl.w	#$04,d0					; multiply by 10 (every 10 pixels is VRAM 0100+)
-		or.w	#vram_fg-$8000,d0			; set VRAM write bit
-		move.l	#((((((HBufferSize*$02)/$02)<<$08)&$FF0000)+(((HBufferSize*$02)/$02)&$FF))+$94009300),(a6) ; set DMA size
-		move.l	#((((((vHBufferFG&$FFFFFF)/$02)<<$08)&$FF0000)+(((vHBufferFG&$FFFFFF)/$02)&$FF))+$96009500),(a6) ; set DMA Source
-		move.l	d0,(a6)					; set DMA source/destination
-		move.w	#$0083,(a6)				; set DMA destination
-
 		movem.w	(sp)+,d4_LT_PosX/d7				; restore X pos and counter
 		sub.w	d3_LT_NegTen,d5_LT_PosY					; increase Y pos down
 		dbf	d7,DAFG_NextLine			; repeat til all lines are done
@@ -236,15 +210,15 @@ DAFG_NextLine:
 ; Subroutine to load tiles from blocks to a buffer space
 ; ---------------------------------------------------------------------------
 HorizLoadBlocks:
-		move.l	a5_LT_TileMapBackup,a2_LT_TileMapLine1
-
 		moveq	#$1E,d0					; prepare maximum number of blocks minus 1
 		sub.w	d7_LT_BlockNum,d0			; subtract number of blocks to draw
+		move.w	d6,-(sp)				; store VRAM address
+		move.w	#v_16x16,d6				; prepare block address
 		move.w	d0,-(sp)				; store remaining blocks counter
-
 		move.w	d4_LT_PosX,d0				; load X position
 		andi.w	#$01F0,d0				; keep in range
 		lsr.w	#$02,d0					; divide by 4 (every 10 pixels is 4 bytes of a double tile)
+		lea	(vTileBuffer).w,a2			; load beginning of tile buffer
 		adda.w	d0,a2_LT_TileMapLine1			; advance to correct tile buffer address
 		lea	$80(a2_LT_TileMapLine1),a3_LT_TileMapLine2	; ''
 
@@ -258,9 +232,10 @@ HLB_NextBlock:
 		add.w	d1,d1
 
 		move.w	d5_LT_PosY,d0	
-		lsr.w	#5,d0
-		andi.w	#$7E,d0
-		move.w	4(a4_LT_LayoutAddr,d0.w),d0
+		lsr.w	#4,d0
+		andi.w	#$FC,d0
+		addq.w	#8,d0
+		move.w	(a4_LT_LayoutAddr,d0.w),d0
 
 		tst.w	d0
 		bne.s	.valid
@@ -341,7 +316,7 @@ HLB_NextBlock:
 		move.w	d4_LT_PosX,d0				; copy to d0
 		andi.w	#$01F0,d0				; keep in range of the plane size
 		bne	HLB_NoEnd				; if it has not wrapped back to the beginning, branch
-		move.l	a5_LT_TileMapBackup,a2_LT_TileMapLine1	; reload tile buffer from beginning
+		lea	(vTileBuffer).w,a2_LT_TileMapLine1	; reload tile buffer from beginning
 		lea	$80(a2_LT_TileMapLine1),a3_LT_TileMapLine2	; ''
 
 HLB_NoEnd:
@@ -356,6 +331,16 @@ HBL_ClearBuffer:
 		dbf	d7,HBL_ClearBuffer			; repeat til done
 
 HBL_NoClearBuffer:
+		move.w	(sp)+,d6				; restore VRAM address
+		move.l	#$977F0000,d0				; prepare DMA source value
+		move.w	d5,d0
+		andi.w	#$00F0,d0				; keep in range
+		lsl.w	#$04,d0					; multiply by 10 (every 10 pixels is VRAM 0100+)
+		or.w	d6,d0			; set VRAM write bit
+		move.l	#((((((HBufferSize*$02)/$02)<<$08)&$FF0000)+(((HBufferSize*$02)/$02)&$FF))+$94009300),(a5) ; set DMA size
+		move.l	#((((((vTileBuffer&$FFFFFF)/$02)<<$08)&$FF0000)+(((vTileBuffer&$FFFFFF)/$02)&$FF))+$96009500),(a5) ; set DMA Source
+		move.l	d0,(a5)					; set DMA source/destination
+		move.w	#$0083,(a5)				; set DMA destination
 		rts						; return
 ; ===========================================================================
 ; ---------------------------------------------------------------------------
@@ -363,13 +348,13 @@ HBL_NoClearBuffer:
 ; ---------------------------------------------------------------------------
 
 VertiLoadBlocks:
-		move.l	a5_LT_TileMapBackup,a2_LT_TileMapLine1
-
 		move.w	d5_LT_PosY,d0				; load Y position
 		andi.w	#$00F0,d0				; keep in range
 		lsr.w	#$02,d0					; divide by 4 (every 10 pixels is 4 bytes of a double tile)
+		lea	(vTileBuffer).w,a2_LT_TileMapLine1
 		adda.w	d0,a2_LT_TileMapLine1			; advance to correct tile buffer address
 		lea	$80(a2_LT_TileMapLine1),a3_LT_TileMapLine2	; ''
+		move.w	d6,-(sp)				; store VRAM location
 		move.l	#v_16x16,d6_LT_BlockAddrBackup			; prepare block address
 
 VLB_NextBlock:
@@ -380,9 +365,9 @@ VLB_NextBlock:
 		add.w	d1,d1
 
 		move.w	d5_LT_PosY,d0	
-		lsr.w	#5,d0
-		andi.w	#$7E,d0
-		move.w	4(a4_LT_LayoutAddr,d0.w),d0
+		lsr.w	#4,d0
+		andi.w	#$FC,d0
+		move.w	8(a4_LT_LayoutAddr,d0.w),d0
 
 		tst.w	d0
 		bne.s	.valid
@@ -466,31 +451,38 @@ VLB_NextBlock:
 		move.l	d1,(a3_LT_TileMapLine2)+		; save bottom two tiles
 
 		sub.w	d3_LT_NegTen,d5_LT_PosY			; increase Y position to next block
-		move.b	d5_LT_PosY,d0
-		andi.b	#$10,d0
-		bne.s	.dontadd
-		moveq	#0,d0
-		move.w	(a4_LT_LayoutAddr),d0
-		add.l	d0,(sp)
-
-	.dontadd:
 		move.w	d5_LT_PosY,d0				; copy to d0
 		andi.w	#$00F0,d0				; keep in range of the plane size
 		bne	VLB_NoEnd				; if it has not wrapped back to the beginning, branch
-		move.l	a5_LT_TileMapBackup,a2_LT_TileMapLine1	; reload tile buffer from beginning			; ''
+		lea	(vTileBuffer).w,a2_LT_TileMapLine1	; reload tile buffer from beginning			; ''
 		lea	$80(a2_LT_TileMapLine1),a3_LT_TileMapLine2	; ''
 
 VLB_NoEnd:
 		dbf	d7,VLB_NextBlock			; repeat til done
-		addq.l	#4,sp
+		move.w	(sp)+,d6				; restore VRAM location
+		move.l	#$977F0000,d0				; prepare DMA source value
+		move.w	d4_LT_PosX,d0				; load X position
+		andi.w	#$01F0,d0				; keep in range
+		lsr.w	#$02,d0					; divide by 2 (every 10 pixels is VRAM 0002+)
+		or.w	d6,d0					; set VRAM write bit
+		move.w	#$8F80,(a5)				; set auto increment to 80 (next line)
+		move.l	#(((((VBufferSize/$02)<<$08)&$FF0000)+((VBufferSize/$02)&$FF))+$94009300),(a5) ; set DMA size
+		move.l	#((((((vTileBufferA&$FFFFFF)/$02)<<$08)&$FF0000)+(((vTileBufferA&$FFFFFF)/$02)&$FF))+$96009500),(a5) ; set DMA Source
+		move.l	d0,(a5)					; set DMA source/destination
+		move.w	#$0083,(a5)				; set DMA destination
+		addq.w	#$02,d0					; advance to tile on right in VRAM address
+		move.l	#(((((VBufferSize/$02)<<$08)&$FF0000)+((VBufferSize/$02)&$FF))+$94009300),(a5) ; set DMA size
+		move.l	#((((((vTileBufferB&$FFFFFF)/$02)<<$08)&$FF0000)+(((vTileBufferB&$FFFFFF)/$02)&$FF))+$96009500),(a5) ; set DMA Source
+		move.l	d0,(a5)					; set DMA source/destination
+		move.w	#$0083,(a5)				; set DMA destination
+		move.w	#$8F02,(a5)				; set auto increment back to 02 (word)
 		rts						; return
 ; ===========================================================================
 ; ---------------------------------------------------------------------------
 ; Subroutine to load tiles from blocks to a buffer space
 ; ---------------------------------------------------------------------------
 VertiLoadBlocksScroll:
-		move.w	#vram_bg-$8000,d6
-
+		move.l	#$00800000,a2				; prepare a2 as line shift register value
 		move.b	d5_LT_PosY,d0				; load Y position
 		andi.w	#$000F,d0				; get only within the block position
 		add.b	d0,d0					; multiply by 4 (size of scanline data)
@@ -513,9 +505,9 @@ VLBS_FirstBlock:
 		add.w	d1,d1
 
 		move.w	d5_LT_PosY,d0	
-		lsr.w	#5,d0
-		andi.w	#$7E,d0
-		move.w	4(a4_LT_LayoutAddr,d0.w),d0
+		lsr.w	#4,d0
+		andi.w	#$FC,d0
+		move.w	8(a4_LT_LayoutAddr,d0.w),d0
 		move.w d0,d2
 
 		tst.w	d0
@@ -547,7 +539,7 @@ VLBS_FirstBlock:
 	;	eor.w	#4,d1
 
 	.noflip:
-		move.w	d0,d2
+	;	move.w	d0,d2
 		andi.w	#$3FFF,d0				; keep in range
 		lsl.l	#5,d0
 		or.w	d1,d0					; save to chunk address
@@ -558,19 +550,16 @@ VLBS_FirstBlock:
 		lsl.w	#$03,d0					; multiply by 8
 		adda.l	d0,a1_LT_BlockAddr			; advance to correct block address
 
-		move.w	d4_LT_PosX,d0				; load X position
-		andi.w	#$01F0,d0				; keep within 200 pixels in multiples of 10
-		lsr.w	#$02,d0					; divide by 4
+		move.w	d4_LT_PosX,d2				; load X position
+		andi.w	#$01F0,d2				; keep within 200 pixels in multiples of 10
+		lsr.w	#$02,d2					; divide by 4
 		move.w	d5_LT_PosY,d1				; load Y position
 		andi.w	#$00F0,d1				; keep within 100 pixels in multiples of 10
 		lsl.w	#$04,d1					; multiply by 10
-		or.w	d1,d0					; save Y onto X
-		or.w	d6,d0					; save VRAM address
-		swap	d0					; send left
-		move.w	#$0003,d0				; set VRAM address
-		move.l	d0,$100(a2_LT_TileMapLine1)
-		add.l	#$800000,d0
-		move.l	d0,$104(a2_LT_TileMapLine1)
+		or.w	d1,d2					; save Y onto X
+		or.w	d6,d2					; save VRAM address
+		swap	d2					; send left
+		move.w	#$0003,d2
 
 		move.l	(a1_LT_BlockAddr)+,d0			; load top two tiles
 		move.l	(a1_LT_BlockAddr)+,d1			; load bottom two tiles
@@ -604,80 +593,12 @@ VLBS_NoFlip:
 	;	exg	d0,d1					; swap tiles over
 
 	.NoFlip:
-		move.l	d0,(a2_LT_TileMapLine1)+		; save top two tiles
-		move.l	d1,(a2_LT_TileMapLine1)+		; save top two tiles
+		move.l	d2,(a5)
+		move.l	d0,(a6)	
+		add.l	a2,d2
+		move.l	d2,(a5)					; save top two tiles
+		move.l	d1,(a6)					; save top two tiles
 		addi.w	#$0010,d5_LT_PosY			; increase Y position to next block
 		dbf	d7,VLBS_NextBlock			; repeat til done
 		rts						; return
 ; ===========================================================================
-; ---------------------------------------------------------------------------
-; Subroutine to load tiles from buffer to tilemap during vblank
-; ---------------------------------------------------------------------------
-UpdateTileMap:
-		lea	(vdp_control_port).l,a6
-	; Horizontal foreground
-		tst.w	(vHDrawFG).w
-		beq.s	.vertfg
-		move.l	#$977F0000,d0				; prepare DMA source value
-		move.w	(vDrawFGY).w,d0
-		andi.w	#$00F0,d0				; keep in range
-		lsl.w	#$04,d0					; multiply by 10 (every 10 pixels is VRAM 0100+)
-		or.w	#vram_fg-$8000,d0			; set VRAM write bit
-		move.l	#((((((HBufferSize*$02)/$02)<<$08)&$FF0000)+(((HBufferSize*$02)/$02)&$FF))+$94009300),(a6) ; set DMA size
-		move.l	#((((((vHBufferFG&$FFFFFF)/$02)<<$08)&$FF0000)+(((vHBufferFG&$FFFFFF)/$02)&$FF))+$96009500),(a6) ; set DMA Source
-		move.l	d0,(a6)					; set DMA source/destination
-		move.w	#$0083,(a6)				; set DMA destination
-	; Vertical foreground
-	.vertfg:
-		tst.w	(vVDrawFG).w
-		beq.s	.horizbg
-		move.l	#$977F0000,d0				; prepare DMA source value
-		move.w	(vDrawFGX).w,d0				; load X position
-		andi.w	#$01F0,d0				; keep in range
-		lsr.w	#$02,d0					; divide by 2 (every 10 pixels is VRAM 0002+)
-		or.w	#vram_fg-$8000,d0			; set VRAM write bit
-		move.w	#$8F80,(a6)				; set auto increment to 80 (next line)
-		move.l	#(((((VBufferSize/$02)<<$08)&$FF0000)+((VBufferSize/$02)&$FF))+$94009300),(a6) ; set DMA size
-		move.l	#((((((vVBufferFGA&$FFFFFF)/$02)<<$08)&$FF0000)+(((vVBufferFGA&$FFFFFF)/$02)&$FF))+$96009500),(a6) ; set DMA Source
-		move.l	d0,(a6)					; set DMA source/destination
-		move.w	#$0083,(a6)				; set DMA destination
-		addq.w	#$02,d0					; advance to tile on right in VRAM address
-		move.l	#(((((VBufferSize/$02)<<$08)&$FF0000)+((VBufferSize/$02)&$FF))+$94009300),(a6) ; set DMA size
-		move.l	#((((((vVBufferFGB&$FFFFFF)/$02)<<$08)&$FF0000)+(((vVBufferFGB&$FFFFFF)/$02)&$FF))+$96009500),(a6) ; set DMA Source
-		move.l	d0,(a6)					; set DMA source/destination
-		move.w	#$0083,(a6)				; set DMA destination
-		move.w	#$8F02,(a6)				; set auto increment back to 02 (word)
-
-	; Horizontal background
-	.horizbg:
-		tst.w	(vHDrawBG).w
-		beq.s	.vertbg
-		move.l	#$977F0000,d0				; prepare DMA source value
-		move.w	(vDrawBGY).w,d0
-		andi.w	#$00F0,d0				; keep in range
-		lsl.w	#$04,d0					; multiply by 10 (every 10 pixels is VRAM 0100+)
-		or.w	#vram_bg-$8000,d0					; set VRAM write bit
-		move.l	#((((((HBufferSize*$02)/$02)<<$08)&$FF0000)+(((HBufferSize*$02)/$02)&$FF))+$94009300),(a6) ; set DMA size
-		move.l	#((((((vHBufferBG&$FFFFFF)/$02)<<$08)&$FF0000)+(((vHBufferBG&$FFFFFF)/$02)&$FF))+$96009500),(a6) ; set DMA Source
-		move.l	d0,(a6)					; set DMA source/destination
-		move.w	#$0083,(a6)				; set DMA destination
-
-	; Vertical background
-	.vertbg:
-		tst.w	(vVDrawBG).w
-		beq.s	.done
-		lea	(vVBufferBG).l,a1
-		lea	(vVBufferBGDMA).l,a2
-		lea	(vdp_data_port).l,a5
-		moveq	#$00,d7					; clear d7
-		move.b	#$1F,d7					; load number of vertical blocks to draw
-
-	.loop:
-		move.l	(a2)+,(a6)				; set VDP VRAM address
-		move.l	(a1)+,(a5)				; save top two tiles
-		move.l	(a2)+,(a6)				; set VDP VRAM address
-		move.l	(a1)+,(a5)				; save bottom two tiles
-		dbf	d7,.loop
-
-	.done:
-		rts
