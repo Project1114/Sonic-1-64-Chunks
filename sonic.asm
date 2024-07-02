@@ -1999,7 +1999,7 @@ Tit_LoadText:
 		bsr.w	PaletteFadeOut
 		disable_ints
 		bsr.w	ClearScreen
-		lea	(v_lvllayout+$40).l,a4			; MJ: load BG layout space
+		lea	(v_lvllayout+$84).l,a4			; MJ: load BG layout space
 		move.w	#$6000,d6				; MJ: prepare VRAM plane address
 		move.w	(v_bgscreenposx).w,d4			; MJ: load BG X position
 		move.w	(v_bgscreenposy).w,d5			; MJ: load BG Y position

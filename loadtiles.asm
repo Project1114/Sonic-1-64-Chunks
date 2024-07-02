@@ -89,7 +89,7 @@ FGV_NoDraw:
 ; Drawing the BG Tiles in void space
 ; ---------------------------------------------------------------------------
 BGH_Draw:
-		lea	(v_lvllayout+$40).l,a4_LT_LayoutAddr	; load BG layout space
+		lea	(v_lvllayout+$84).l,a4_LT_LayoutAddr	; load BG layout space
 ; ---------------------------------------------------------------------------
 ; BG Horizontal
 ; ---------------------------------------------------------------------------
@@ -116,7 +116,7 @@ BGH_UpDraw:
 		lea	(vHBufferBG).l,a5_LT_TileMapBackup	; load beginning of tile buffer
 		move.w	d5_LT_PosY,(vDrawBGY).w
 		moveq	#$00,d7_LT_BlockRemain			; clear d7
-		move.b	(v_bg2_scroll_flags).w,d7_LT_BlockRemain	; load number of horizontal blocks to draw
+		move.b	(v_bg2_xblock).w,d7_LT_BlockRemain	; load number of horizontal blocks to draw
 		bsr	HorizLoadBlocks				; draw horizontal blocks
 
 BGH_NoDraw:
@@ -138,7 +138,7 @@ BGV_LeftDraw:
 		lea	(vVBufferBG).l,a2_LT_TileMapLine1		; load beginning of tile buffer
 		lea	(v_hscrolltablebuffer+2).w,a3_LT_Scanline		; load scroll address
 		moveq	#$00,d7_LT_BlockRemain			; clear d7
-		move.b	(v_bg2_scroll_flags+1).w,d7_LT_BlockRemain	; load number of vertical blocks to draw
+		move.b	(v_bg2_yblock).w,d7_LT_BlockRemain	; load number of vertical blocks to draw
 		bra	VertiLoadBlocksScroll			; draw vertical blocks using scroll
 
 BGV_NoDraw:
@@ -152,7 +152,7 @@ LoadTilesFromStart:
 		move.w	(v_screenposx).w,d4_LT_PosX				; load X position
 		move.w	(v_screenposy).w,d5_LT_PosY				; load Y position
 		bsr	LoadFGTilesFromStart			; draw FG
-		lea	(v_lvllayout+$40).l,a4_LT_LayoutAddr	; load BG layout space
+		lea	(v_lvllayout+$84).l,a4_LT_LayoutAddr	; load BG layout space
 		move.w	(v_bgscreenposx).w,d4_LT_PosX			; load BG X position
 		move.w	(v_bgscreenposy).w,d5_LT_PosY			; load BG Y position
 
@@ -258,10 +258,9 @@ HLB_NextBlock:
 		add.w	d1,d1
 
 		move.w	d5_LT_PosY,d0	
-		lsr.w	#4,d0
-		andi.w	#$FC,d0
-		addq.w	#8,d0
-		move.w	(a4_LT_LayoutAddr,d0.w),d0
+		lsr.w	#5,d0
+		andi.w	#$7E,d0
+		move.w	4(a4_LT_LayoutAddr,d0.w),d0
 
 		tst.w	d0
 		bne.s	.valid
@@ -381,10 +380,9 @@ VLB_NextBlock:
 		add.w	d1,d1
 
 		move.w	d5_LT_PosY,d0	
-		lsr.w	#4,d0
-		andi.w	#$FC,d0
-		addq.w	#8,d0
-		move.w	(a4_LT_LayoutAddr,d0.w),d0
+		lsr.w	#5,d0
+		andi.w	#$7E,d0
+		move.w	4(a4_LT_LayoutAddr,d0.w),d0
 
 		tst.w	d0
 		bne.s	.valid
@@ -499,12 +497,6 @@ VertiLoadBlocksScroll:
 		add.b	d0,d0					; ''
 		move.w	(a3_LT_Scanline),d4_LT_PosX		; load first scanline position (for first block only)
 		suba.w	d0,a3_LT_Scanline			; shift scroll buffer address to correct beginning scanline of blocks
-
-		move.w	d5_LT_PosY,d1				; load Y position
-		lsr.w	#5,d1
-		move.w	(a4_LT_LayoutAddr),d2
-		mulu.w	d2,d1
-		move.l	d1,-(sp)
 		bra	VLBS_FirstBlock				; continue
 
 VLBS_NextBlock:
@@ -517,35 +509,47 @@ VLBS_FirstBlock:
 		lea	(v_16x16).w,a1_LT_BlockAddr		; load block address
 		moveq	#0,d1
 		move.w	d4_LT_PosX,d1				; load X position
-		lsr.w	#4,d1
-		andi.w	#$FFFE,d1				; keep in range
-		add.l	(sp),d1					; save X onto Y
-		addq.l	#2,d1
+		lsr.w	#6,d1
+		add.w	d1,d1
+
+		move.w	d5_LT_PosY,d0	
+		lsr.w	#5,d0
+		andi.w	#$7E,d0
+		move.w	4(a4_LT_LayoutAddr,d0.w),d0
+		move.w d0,d2
+
+		tst.w	d0
+		bne.s	.valid
+		move.w	#$108,d0
+
+	.valid:
+		add.w	d0,d1
+
 		moveq	#0,d0
 		move.w	(a4_LT_LayoutAddr,d1.w),d0		; load chunk ID
 
-		move.w	d4_LT_PosX,d1				; load X position
+		move.w	d4_LT_PosX,d1					; load X position
 		lsr.w	#$03,d1					; divide by 8
-		andi.w	#2,d1
+		andi.w	#6,d1
 
-		btst	#$E,d0
-		beq.s	.nomirror
-		eor.w	#2,d1
+	;	btst	#$E,d0
+	;	beq.s	.nomirror
+	;	eor.w	#2,d1
 
 	.nomirror:
-		move.w	d5_LT_PosY,d2				; load Y position
-		lsr.w	#2,d2
-		andi.w	#4,d2
+		move.w	d5_LT_PosY,d2					; load Y position
+		lsr.w	#1,d2
+		andi.w	#$18,d2
 		or.w	d2,d1					; save Y onto X
 
-		btst	#$F,d0
-		beq.s	.noflip
-		eor.w	#4,d1
+	;	btst	#$F,d0
+	;	beq.s	.noflip
+	;	eor.w	#4,d1
 
 	.noflip:
 		move.w	d0,d2
 		andi.w	#$3FFF,d0				; keep in range
-		lsl.l	#3,d0
+		lsl.l	#5,d0
 		or.w	d1,d0					; save to chunk address
 		move.l	(v_chunkloc).w,a0_LT_ChunkAddr
 		add.l	d0,a0_LT_ChunkAddr			; set chunk address
@@ -554,10 +558,10 @@ VLBS_FirstBlock:
 		lsl.w	#$03,d0					; multiply by 8
 		adda.l	d0,a1_LT_BlockAddr			; advance to correct block address
 
-		move.w	d4_LT_PosX,d0					; load X position
+		move.w	d4_LT_PosX,d0				; load X position
 		andi.w	#$01F0,d0				; keep within 200 pixels in multiples of 10
 		lsr.w	#$02,d0					; divide by 4
-		move.w	d5_LT_PosY,d1					; load Y position
+		move.w	d5_LT_PosY,d1				; load Y position
 		andi.w	#$00F0,d1				; keep within 100 pixels in multiples of 10
 		lsl.w	#$04,d1					; multiply by 10
 		or.w	d1,d0					; save Y onto X
@@ -585,34 +589,25 @@ VLBS_NoMirror:
 		exg	d0,d1					; swap tiles over
 
 VLBS_NoFlip:
-		btst	#$E,d2				; was the block mirrored?
-		beq	.NoMirror				; if not, branch
-		eori.l	#$08000800,d0				; set mirror bits
-		eori.l	#$08000800,d1				; ''
-		swap	d0					; swap tiles over
-		swap	d1					; ''
+	;	btst	#$E,d2				; was the block mirrored?
+	;	beq	.NoMirror				; if not, branch
+	;	eori.l	#$08000800,d0				; set mirror bits
+	;	eori.l	#$08000800,d1				; ''
+	;	swap	d0					; swap tiles over
+	;	swap	d1					; ''
 
 	.NoMirror:
-		btst	#$0F,d2				; was the block flipped?
-		beq	.NoFlip				; if not, branch
-		eori.l	#$10001000,d0				; set flip bits
-		eori.l	#$10001000,d1				; ''
-		exg	d0,d1					; swap tiles over
+	;	btst	#$0F,d2				; was the block flipped?
+	;	beq	.NoFlip				; if not, branch
+	;	eori.l	#$10001000,d0				; set flip bits
+	;	eori.l	#$10001000,d1				; ''
+	;	exg	d0,d1					; swap tiles over
 
 	.NoFlip:
 		move.l	d0,(a2_LT_TileMapLine1)+		; save top two tiles
 		move.l	d1,(a2_LT_TileMapLine1)+		; save top two tiles
 		addi.w	#$0010,d5_LT_PosY			; increase Y position to next block
-		move.b	d5_LT_PosY,d0
-		andi.b	#$10,d0
-		bne.s	.dontadd
-		moveq	#0,d0
-		move.w	(a4_LT_LayoutAddr),d0
-		add.l	d0,(sp)
-
-	.dontadd:
 		dbf	d7,VLBS_NextBlock			; repeat til done
-		addq.l	#4,sp
 		rts						; return
 ; ===========================================================================
 ; ---------------------------------------------------------------------------
