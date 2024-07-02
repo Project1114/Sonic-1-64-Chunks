@@ -43,674 +43,339 @@ Deform_Index:	dc.w Deform_GHZ-Deform_Index, Deform_LZ-Deform_Index
 
 ; ||||||||||||||| S U B	R O U T	I N E |||||||||||||||||||||||||||||||||||||||
 
-
 Deform_GHZ:				; XREF: Deform_Index
-
 		move.l	#$160F160F,(v_bg1_xblock).w		; MJ: set draw block sizes
-
 		move.w	(v_scrshiftx).w,d4
-
 		ext.l	d4
-
 		asl.l	#$05,d4
-
 		move.l	d4,d1
-
 		asl.l	#$01,d4
-
 		add.l	d1,d4
-
 		add.l	d4,(v_bgscreenposx).w
-
 		move.w	(v_scrshiftx).w,d0			; MJ: load X add position
-
 		ext.l	d0					; MJ: extend incase it's negative
-
 		asl.l	#$07,d0					; MJ: multiply by 80 (shifting to decimal place)
-
 		add.l	d0,(v_bg2screenposx).w			; MJ: add to current Bottom BG X position
-
 		lea	(v_hscrolltablebuffer).w,a1
-
 		move.w	(v_screenposy).w,d0
-
 		andi.w	#$7FF,d0
-
 		lsr.w	#5,d0
-
 		neg.w	d0
-
 		addi.w	#$26,d0
-
 		move.w	d0,(v_bg2screenposy).w
-
 		move.w	d0,d4
-
 		move.w	d0,(v_bgscreenposy).w			; update Top BG Y position
-
 		move.w	(v_bgscreenposy).w,(v_bgscrposy_vdp).w
-
 		move.w	#$7F,d1					; MJ: changed from 6F to 7F
-
 		sub.w	d4,d1
-
 		move.w	(v_screenposx).w,d0
-
 		cmpi.b	#4,(v_gamemode).w
-
 		bne.s	loc_633C
-
 		moveq	#0,d0
 
-
-
 loc_633C:
-
 		neg.w	d0
-
 		swap	d0
-
 		move.w	(v_bgscreenposx).w,d0
-
 		neg.w	d0
-
-
 
 loc_6346:
-
 		move.l	d0,(a1)+
-
 		dbf	d1,loc_6346
-
 		move.w	#$27,d1
-
 		move.w	(v_bg2screenposx).w,d0
-
 		neg.w	d0
-
-
 
 loc_6356:
-
 		move.l	d0,(a1)+
-
 		dbf	d1,loc_6356
-
 		move.w	(v_bg2screenposx).w,d0
-
 		addi.w	#0,d0
-
 		move.w	(v_screenposx).w,d2
-
 	;	addi.w	#-$200,d2				; MJ: removed shift (the new draw code works so well, it draws the error properly =$)
-
 		sub.w	d0,d2
-
 		ext.l	d2
-
 		asl.l	#8,d2
-
 		divs.w	#$68,d2
-
 		ext.l	d2
-
 		asl.l	#8,d2
-
 		moveq	#0,d3
-
 		move.w	d0,d3
-
 		move.w	#$57,d1					; MJ: changed from 47 to 57
-
 		add.w	d4,d1
 
-
-
 loc_6384:
-
 		move.w	d3,d0
-
 		neg.w	d0
-
 		move.l	d0,(a1)+
-
 		swap	d3
-
 		add.l	d2,d3
-
 		swap	d3
-
 		dbf	d1,loc_6384
-
 		rts
-
-
 
 ; End of function Deform_GHZ
 
-
-
 ; ---------------------------------------------------------------------------
-
 ; Labyrinth Zone background layer deformation code
-
 ; ---------------------------------------------------------------------------
-
-
 
 ; ||||||||||||||| S U B	R O U T	I N E |||||||||||||||||||||||||||||||||||||||
-
-
-
 
 
 Deform_LZ:				; XREF: Deform_Index
-
 		move.l	#$160F160F,(v_bg1_xblock).w		; MJ: set draw block sizes
-
 		move.w	(v_scrshiftx).w,d4
-
 		ext.l	d4
-
 		asl.l	#7,d4
-
 		add.l	d4,(v_bgscreenposx).w
-
 		move.w	(v_scrshifty).w,d5
-
 		ext.l	d5
-
 		asl.l	#7,d5
-
 		add.l	d5,(v_bgscreenposy).w
 
-
-
 		move.w	(v_bgscreenposy).w,(v_bgscrposy_vdp).w
-
 		lea	(v_hscrolltablebuffer).w,a1
-
 		move.w	#$FF,d1					; MJ: changed from DF to FF
-
 		move.w	(v_screenposx).w,d0
-
 		neg.w	d0
-
 		swap	d0
-
 		move.w	(v_bgscreenposx).w,d0
-
 		neg.w	d0
-
-
 
 loc_63C6:
-
 		move.l	d0,(a1)+
-
 		dbf	d1,loc_63C6
-
 		move.w	(v_waterpos1).w,d0
-
 		sub.w	(v_screenposy).w,d0
-
 		rts	
-
 ; End of function Deform_LZ
 
-
-
 ; ---------------------------------------------------------------------------
-
 ; Marble Zone background layer deformation code
-
 ; ---------------------------------------------------------------------------
-
-
 
 ; ||||||||||||||| S U B	R O U T	I N E |||||||||||||||||||||||||||||||||||||||
-
-
-
 
 
 Deform_MZ:				; XREF: Deform_Index
-
 		move.l	#$160F160F,(v_bg1_xblock).w		; MJ: set draw block sizes
-
 		move.w	(v_scrshiftx).w,d4
-
 		ext.l	d4
-
 		asl.l	#6,d4
-
 		move.l	d4,d1
-
 		asl.l	#1,d4
-
 		add.l	d1,d4
-
 		add.l	d4,(v_bgscreenposx).w
 
-
-
 		move.w	#$200,d0
-
 		move.w	(v_screenposy).w,d1
-
 		subi.w	#$1C8,d1
-
 		bcs.s	loc_6402
-
 		move.w	d1,d2
-
 		add.w	d1,d1
-
 		add.w	d2,d1
-
 		asr.w	#2,d1
-
 		add.w	d1,d0
 
-
-
 loc_6402:
-
 		move.w	d0,(v_bg2screenposy).w
-
 		move.w	d0,(v_bgscreenposy).w			; update Top BG Y position
-
 		move.w	(v_bgscreenposy).w,(v_bgscrposy_vdp).w
-
 		lea	(v_hscrolltablebuffer).w,a1
-
 		move.w	#$FF,d1					; MJ: changed from DF to FF
-
 		move.w	(v_screenposx).w,d0
-
 		neg.w	d0
-
 		swap	d0
-
 		move.w	(v_bgscreenposx).w,d0
-
 		neg.w	d0
-
-
 
 loc_6426:
-
 		move.l	d0,(a1)+
-
 		dbf	d1,loc_6426
-
 		rts	
-
 ; End of function Deform_MZ
 
-
-
 ; ---------------------------------------------------------------------------
-
 ; Star Light Zone background layer deformation code
-
 ; ---------------------------------------------------------------------------
-
-
 
 ; ||||||||||||||| S U B	R O U T	I N E |||||||||||||||||||||||||||||||||||||||
-
-
-
 
 
 Deform_SLZ:				; XREF: Deform_Index
-
 		move.l	#$160F160F,(v_bg1_xblock).w		; MJ: set draw block sizes
-
 		move.w	(v_scrshiftx).w,d4
-
 		ext.l	d4
-
 		asl.l	#7,d4
-
 		add.l	d4,(v_bgscreenposx).w
-
 		move.w	(v_scrshifty).w,d5
-
 		ext.l	d5
-
 		asl.l	#7,d5
-
 		add.l	d5,(v_bgscreenposy).w
 
-
-
 		move.w	(v_bgscreenposy).w,(v_bgscrposy_vdp).w
-
 		bsr.w	Deform_SLZ_2
-
-		lea	(TileBufferA).w,a2
-
+	;	lea	(TileBufferA).w,a2
 		move.w	(v_bgscreenposy).w,d0
-
 		move.w	d0,d2
-
 		subi.w	#$C0,d0
-
 		andi.w	#$3F0,d0
-
 		lsr.w	#3,d0
-
 		lea	(a2,d0.w),a2
-
 		lea	(v_hscrolltablebuffer).w,a1
-
 		move.w	#$F,d1					; MJ: changed from E to F
-
 		move.w	(v_screenposx).w,d0
-
 		neg.w	d0
-
 		swap	d0
-
 		andi.w	#$F,d2
-
 		add.w	d2,d2
-
 		move.w	(a2)+,d0
-
 		jmp	loc_6482(pc,d2.w)
-
 ; ===========================================================================
 
-
-
 loc_6480:				; XREF: Deform_SLZ
-
 		move.w	(a2)+,d0
 
-
-
 loc_6482:
-
 		move.l	d0,(a1)+
-
 		move.l	d0,(a1)+
-
 		move.l	d0,(a1)+
-
 		move.l	d0,(a1)+
-
 		move.l	d0,(a1)+
-
 		move.l	d0,(a1)+
-
 		move.l	d0,(a1)+
-
 		move.l	d0,(a1)+
-
 		move.l	d0,(a1)+
-
 		move.l	d0,(a1)+
-
 		move.l	d0,(a1)+
-
 		move.l	d0,(a1)+
-
 		move.l	d0,(a1)+
-
 		move.l	d0,(a1)+
-
 		move.l	d0,(a1)+
-
 		move.l	d0,(a1)+
-
 		dbf	d1,loc_6480
-
 		rts	
-
 ; End of function Deform_SLZ
 
 
-
-
-
 ; ||||||||||||||| S U B	R O U T	I N E |||||||||||||||||||||||||||||||||||||||
-
-
-
 
 
 Deform_SLZ_2:				; XREF: Deform_SLZ
-
-		lea	(TileBufferA).w,a1
-
+	;	lea	(TileBufferA).w,a1
 		move.w	(v_screenposx).w,d2
-
 		neg.w	d2
-
 		move.w	d2,d0
-
 		asr.w	#3,d0
-
 		sub.w	d2,d0
-
 		ext.l	d0
-
 		asl.l	#4,d0
-
 		divs.w	#$1C,d0
-
 		ext.l	d0
-
 		asl.l	#4,d0
-
 		asl.l	#8,d0
-
 		moveq	#0,d3
-
 		move.w	d2,d3
-
 		move.w	#$1C,d1					; MJ: changed from 1B to 1C
 
-
-
 loc_64CE:
-
 		move.w	d3,(a1)+
-
 		swap	d3
-
 		add.l	d0,d3
-
 		swap	d3
-
 		dbf	d1,loc_64CE
-
 		move.w	d2,d0
-
 		asr.w	#3,d0
-
 		move.w	#4,d1
-
-
 
 loc_64E2:
-
 		move.w	d0,(a1)+
-
 		dbf	d1,loc_64E2
-
 		move.w	d2,d0
-
 		asr.w	#2,d0
-
 		move.w	#4,d1
 
-
-
 loc_64F0:
-
 		move.w	d0,(a1)+
-
 		dbf	d1,loc_64F0
-
 		move.w	d2,d0
-
 		asr.w	#1,d0
-
 		move.w	#$1E,d1					; MJ: changed from 1D to 1E
 
-
-
 loc_64FE:
-
 		move.w	d0,(a1)+
-
 		dbf	d1,loc_64FE
-
 		rts	
-
 ; End of function Deform_SLZ_2
 
-
-
 ; ---------------------------------------------------------------------------
-
 ; Spring Yard Zone background layer deformation	code
-
 ; ---------------------------------------------------------------------------
-
-
 
 ; ||||||||||||||| S U B	R O U T	I N E |||||||||||||||||||||||||||||||||||||||
-
-
-
 
 
 Deform_SYZ:				; XREF: Deform_Index
-
 		move.l	#$160F160F,(v_bg1_xblock).w		; MJ: set draw block sizes
-
 		move.w	(v_scrshiftx).w,d4
-
 		ext.l	d4
-
 		asl.l	#6,d4
-
 		add.l	d4,(v_bgscreenposx).w
-
 		move.w	(v_scrshifty).w,d5
-
 		ext.l	d5
-
 		asl.l	#4,d5
-
 		move.l	d5,d1
-
 		asl.l	#1,d5
-
 		add.l	d1,d5
-
 		add.l	d5,(v_bgscreenposy).w
 
-
-
 		move.w	(v_bgscreenposy).w,(v_bgscrposy_vdp).w
-
 		lea	(v_hscrolltablebuffer).w,a1
-
 		move.w	#$FF,d1					; MJ: changed from DF to FF
-
 		move.w	(v_screenposx).w,d0
-
 		neg.w	d0
-
 		swap	d0
-
 		move.w	(v_bgscreenposx).w,d0
-
 		neg.w	d0
-
-
 
 loc_653C:
-
 		move.l	d0,(a1)+
-
 		dbf	d1,loc_653C
-
 		rts	
-
 ; End of function Deform_SYZ
 
-
-
 ; ---------------------------------------------------------------------------
-
 ; Scrap	Brain Zone background layer deformation	code
-
 ; ---------------------------------------------------------------------------
-
-
 
 ; ||||||||||||||| S U B	R O U T	I N E |||||||||||||||||||||||||||||||||||||||
 
 
-
-
-
 Deform_SBZ:				; XREF: Deform_Index
-
 		move.l	#$160F160F,(v_bg1_xblock).w		; MJ: set draw block sizes
-
 		move.w	(v_scrshiftx).w,d4
-
 		ext.l	d4
-
 		asl.l	#6,d4
-
 		add.l	d4,(v_bgscreenposx).w
-
 		move.w	(v_scrshifty).w,d5
-
 		ext.l	d5
-
 		asl.l	#4,d5
-
 		asl.l	#1,d5
-
 		add.l	d5,(v_bgscreenposy).w
-
 		move.w	(v_bgscreenposy).w,(v_bgscrposy_vdp).w
-
 		lea	(v_hscrolltablebuffer).w,a1
-
 		move.w	#$FF,d1					; MJ: changed from DF to FF
-
 		move.w	(v_screenposx).w,d0
-
 		neg.w	d0
-
 		swap	d0
-
 		move.w	(v_bgscreenposx).w,d0
-
 		neg.w	d0
-
-
 
 loc_6576:
-
 		move.l	d0,(a1)+
-
 		dbf	d1,loc_6576
-
 		rts
-
-
 
 ; End of function Deform_SBZ
 

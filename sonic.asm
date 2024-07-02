@@ -28,6 +28,7 @@ zeroOffsetOptimization = 0	; if 1, makes a handful of zero-offset instructions s
 	include	"Constants.asm"
 	include	"Variables.asm"
 	include	"Macros.asm"
+	include	"Debugger.asm"
 
 DebugPathSwappers: = 1
 
@@ -317,20 +318,6 @@ GameProgram:
 		beq.w	GameInit	; if yes, branch
 
 CheckSumCheck:
-		movea.l	#EndOfHeader,a0	; start	checking bytes after the header	($200)
-		movea.l	#RomEndLoc,a1	; stop at end of ROM
-		move.l	(a1),d0
-		moveq	#0,d1
-
-.loop:
-		add.w	(a0)+,d1
-		cmp.l	a0,d0
-		bhs.s	.loop
-		movea.l	#Checksum,a1	; read the checksum
-		cmp.w	(a1),d1		; compare checksum in header to ROM
-		bne.w	CheckSumError	; if they don't match, branch
-
-CheckSumOk:
 		lea	(v_crossresetram).w,a6
 		moveq	#0,d7
 		move.w	#(v_ram_end-v_crossresetram)/4-1,d6
@@ -398,173 +385,6 @@ CheckSumError:
 
 .endlessloop:
 		bra.s	.endlessloop
-; ===========================================================================
-
-BusError:
-		move.b	#2,(v_errortype).w
-		bra.s	loc_43A
-
-AddressError:
-		move.b	#4,(v_errortype).w
-		bra.s	loc_43A
-
-IllegalInstr:
-		move.b	#6,(v_errortype).w
-		addq.l	#2,2(sp)
-		bra.s	loc_462
-
-ZeroDivide:
-		move.b	#8,(v_errortype).w
-		bra.s	loc_462
-
-ChkInstr:
-		move.b	#$A,(v_errortype).w
-		bra.s	loc_462
-
-TrapvInstr:
-		move.b	#$C,(v_errortype).w
-		bra.s	loc_462
-
-PrivilegeViol:
-		move.b	#$E,(v_errortype).w
-		bra.s	loc_462
-
-Trace:
-		move.b	#$10,(v_errortype).w
-		bra.s	loc_462
-
-Line1010Emu:
-		move.b	#$12,(v_errortype).w
-		addq.l	#2,2(sp)
-		bra.s	loc_462
-
-Line1111Emu:
-		move.b	#$14,(v_errortype).w
-		addq.l	#2,2(sp)
-		bra.s	loc_462
-
-ErrorExcept:
-		move.b	#0,(v_errortype).w
-		bra.s	loc_462
-; ===========================================================================
-
-loc_43A:
-		disable_ints
-		addq.w	#2,sp
-		move.l	(sp)+,(v_spbuffer).w
-		addq.w	#2,sp
-		movem.l	d0-a7,(v_regbuffer).w
-		bsr.w	ShowErrorMessage
-		move.l	2(sp),d0
-		bsr.w	ShowErrorValue
-		move.l	(v_spbuffer).w,d0
-		bsr.w	ShowErrorValue
-		bra.s	loc_478
-; ===========================================================================
-
-loc_462:
-		disable_ints
-		movem.l	d0-a7,(v_regbuffer).w
-		bsr.w	ShowErrorMessage
-		move.l	2(sp),d0
-		bsr.w	ShowErrorValue
-
-loc_478:
-		bsr.w	ErrorWaitForC
-		movem.l	(v_regbuffer).w,d0-a7
-		enable_ints
-		rte	
-
-; ||||||||||||||| S U B	R O U T	I N E |||||||||||||||||||||||||||||||||||||||
-
-
-ShowErrorMessage:
-		lea	(vdp_data_port).l,a6
-		locVRAM	$F800
-		lea	(Art_Text).l,a0
-		move.w	#$27F,d1
-.loadgfx:
-		move.w	(a0)+,(a6)
-		dbf	d1,.loadgfx
-
-		moveq	#0,d0		; clear	d0
-		move.b	(v_errortype).w,d0 ; load error code
-		move.w	ErrorText(pc,d0.w),d0
-		lea	ErrorText(pc,d0.w),a0
-		locVRAM	vram_fg+$604
-		moveq	#$12,d1		; number of characters (minus 1)
-
-.showchars:
-		moveq	#0,d0
-		move.b	(a0)+,d0
-		addi.w	#$790,d0
-		move.w	d0,(a6)
-		dbf	d1,.showchars	; repeat for number of characters
-		rts	
-; End of function ShowErrorMessage
-
-; ===========================================================================
-ErrorText:	dc.w .exception-ErrorText, .bus-ErrorText
-		dc.w .address-ErrorText, .illinstruct-ErrorText
-		dc.w .zerodivide-ErrorText, .chkinstruct-ErrorText
-		dc.w .trapv-ErrorText, .privilege-ErrorText
-		dc.w .trace-ErrorText, .line1010-ErrorText
-		dc.w .line1111-ErrorText
-.exception:	dc.b "ERROR EXCEPTION    "
-.bus:		dc.b "BUS ERROR          "
-.address:	dc.b "ADDRESS ERROR      "
-.illinstruct:	dc.b "ILLEGAL INSTRUCTION"
-.zerodivide:	dc.b "@ERO DIVIDE        "
-.chkinstruct:	dc.b "CHK INSTRUCTION    "
-.trapv:		dc.b "TRAPV INSTRUCTION  "
-.privilege:	dc.b "PRIVILEGE VIOLATION"
-.trace:		dc.b "TRACE              "
-.line1010:	dc.b "LINE 1010 EMULATOR "
-.line1111:	dc.b "LINE 1111 EMULATOR "
-		even
-
-; ||||||||||||||| S U B	R O U T	I N E |||||||||||||||||||||||||||||||||||||||
-
-
-ShowErrorValue:
-		move.w	#$7CA,(a6)	; display "$" symbol
-		moveq	#7,d2
-
-.loop:
-		rol.l	#4,d0
-		bsr.s	.shownumber	; display 8 numbers
-		dbf	d2,.loop
-		rts	
-; End of function ShowErrorValue
-
-
-; ||||||||||||||| S U B	R O U T	I N E |||||||||||||||||||||||||||||||||||||||
-
-
-.shownumber:
-		move.w	d0,d1
-		andi.w	#$F,d1
-		cmpi.w	#$A,d1
-		blo.s	.chars0to9
-		addq.w	#7,d1		; add 7 for characters A-F
-
-.chars0to9:
-		addi.w	#$7C0,d1
-		move.w	d1,(a6)
-		rts	
-; End of function sub_5CA
-
-
-; ||||||||||||||| S U B	R O U T	I N E |||||||||||||||||||||||||||||||||||||||
-
-
-ErrorWaitForC:
-		bsr.w	ReadJoypads
-		cmpi.b	#btnC,(v_jpadpress1).w ; is button C pressed?
-		bne.w	ErrorWaitForC	; if not, branch
-		rts	
-; End of function ErrorWaitForC
-
 ; ===========================================================================
 
 Art_Text:	binclude	"artunc/menutext.bin" ; text used in level select and debug mode
@@ -666,6 +486,7 @@ VBla_14:
 VBla_04:
 		bsr.w	sub_106E
 		bsr.w	LoadTilesAsYouMove_BGOnly
+		bsr	UpdateTileMap
 		bsr.w	sub_1642
 		tst.w	(v_demolength).w
 		beq.w	.end
@@ -700,7 +521,7 @@ VBla_08:
 .waterbelow:
 		move.w	(v_hbla_hreg).w,(a5)
 
-		writeVRAM	v_hscrolltablebuffer+$20,$380,vram_hscroll
+		writeVRAM	(v_hscrolltablebuffer+$40),$380,vram_hscroll
 		writeVRAM	v_spritetablebuffer,$280,vram_sprites
 		tst.b	(f_sonframechg).w ; has Sonic's sprite changed?
 		beq.s	.nochg		; if not, branch
@@ -729,6 +550,7 @@ VBla_08:
 
 Demo_Time:
 		bsr.w	LoadTilesAsYouMove
+		bsr	UpdateTileMap
 		jsr	(AnimateLevelGfx).l
 		jsr	(HUD_Update).l
 		bsr.w	ProcessDPLC2
@@ -781,7 +603,7 @@ VBla_0C:
 
 .waterbelow:
 		move.w	(v_hbla_hreg).w,(a5)
-		writeVRAM	v_hscrolltablebuffer+$20,$380,vram_hscroll
+		writeVRAM	v_hscrolltablebuffer,$380,vram_hscroll
 		writeVRAM	v_spritetablebuffer,$280,vram_sprites
 		tst.b	(f_sonframechg).w
 		beq.s	.nochg
@@ -795,6 +617,7 @@ VBla_0C:
 		movem.l	(v_fg_scroll_flags).w,d0-d1
 		movem.l	d0-d1,(v_fg_scroll_flags_dup).w
 		bsr.w	LoadTilesAsYouMove
+		bsr	UpdateTileMap
 		jsr	(AnimateLevelGfx).l
 		jsr	(HUD_Update).l
 		bsr.w	sub_1642
@@ -820,7 +643,7 @@ VBla_16:
 		bsr.w	ReadJoypads
 		writeCRAM	v_pal_dry,$80,0
 		writeVRAM	v_spritetablebuffer,$280,vram_sprites
-		writeVRAM	v_hscrolltablebuffer+$20,$380,vram_hscroll
+		writeVRAM	v_hscrolltablebuffer,$380,vram_hscroll
 		startZ80
 		tst.b	(f_sonframechg).w
 		beq.s	.nochg
@@ -852,7 +675,7 @@ sub_106E:
 
 .waterbelow:
 		writeVRAM	v_spritetablebuffer,$280,vram_sprites
-		writeVRAM	v_hscrolltablebuffer+$20,$380,vram_hscroll
+		writeVRAM	v_hscrolltablebuffer,$380,vram_hscroll
 		startZ80
 		rts	
 ; End of function sub_106E
@@ -2181,6 +2004,7 @@ Tit_LoadText:
 		move.w	(v_bgscreenposx).w,d4			; MJ: load BG X position
 		move.w	(v_bgscreenposy).w,d5			; MJ: load BG Y position
 		bsr.w	LoadBGTilesFromStart			; MJ: draw BG blocks
+		bsr.w	UpdateTileMap
 		lea	(v_lvllayout).l,a1
 		lea	(Eni_Title).l,a0 ; load	title screen mappings
 		move.w	#0,d0
@@ -2871,6 +2695,7 @@ Level_SkipTtlCard:
 		bset	#2,(v_fg_scroll_flags).w
 		bsr.w	LevelDataLoad ; load block mappings and palettes
 		bsr.w	LoadTilesFromStart
+		bsr.w	UpdateTileMap
 		jsr	(ConvertCollisionArray).l
 		bsr.w	ColIndexLoad
 		bsr.w	LZWaterFeatures
@@ -3810,6 +3635,7 @@ End_LoadData:
 		bset	#2,(v_fg_scroll_flags).w
 		bsr.w	LevelDataLoad
 		bsr.w	LoadTilesFromStart
+		bsr.w	UpdateTileMap
 		lea	(Col_GHZ_1).l,a0 ; MJ: Set first collision for ending
 		lea	(v_collision1).w,a1
 		bsr.w	KosDec
@@ -4198,992 +4024,7 @@ Demo_EndGHZ2:	binclude	"demodata/Ending - GHZ2.bin"
 		include	"_inc/DeformLayers (JP1).asm"
 		endif
 
-; ===========================================================================
-
-; ---------------------------------------------------------------------------
-
-; MJ - New draw code - By MarkeyJester - Special thanks to Jorge
-
-; ---------------------------------------------------------------------------
-
-HBufferSize	=	$0080
-VBufferSize	=	$0040
-
-
-
-
-
-; ===========================================================================
-
-; ---------------------------------------------------------------------------
-
-; Subroutine to	draw only the BG void tiles
-
-; ---------------------------------------------------------------------------
-
-
-
-LoadTilesAsYouMove_BGOnly:
-
-		lea	(vdp_data_port).l,a6				; load VDP data port
-
-		lea	$04(a6),a5				; load VDP address port
-
-		moveq	#$FFFFFFF0,d3				; prepare -10
-
-		bra	BGH_Draw				; continue
-
-
-
-; ===========================================================================
-
-; ---------------------------------------------------------------------------
-
-; Drawing the FG Tiles in void space
-
-; ---------------------------------------------------------------------------
-
-
-
-LoadTilesAsYouMove:
-
-		lea	(vdp_data_port).l,a6				; load VDP data port
-
-		lea	$04(a6),a5				; load VDP address port
-
-		lea	(v_lvllayout).l,a4			; load FG layout space
-
-		move.w	#$4000,d6				; prepare VRAM plane address
-
-		moveq	#$FFFFFFF0,d3				; prepare -10
-
-
-
-; ---------------------------------------------------------------------------
-
-; FG Horizontal
-
-; ---------------------------------------------------------------------------
-
-
-
-		move.w	(v_screenposx).w,d4			; load X position
-
-		move.w	(v_screenposy).w,d5			; load Y position
-
-		add.w	d3,d4					; move X back into void space
-
-		move.w	d5,d0					; copy Y pos to d0
-
-		and.w	d3,d0					; keep in range
-
-		add.w	d3,d5					; move Y back into void space
-
-		move.w	(LastFGYPos).w,d1			; load last Y position
-
-		and.w	d3,d1					; keep in range
-
-		move.w	d0,(LastFGYPos).w			; update new last Y position
-
-		sub.w	d1,d0					; minus last from new
-
-		beq	FGH_NoDraw				; if it hasn't moved, branch
-
-		bmi	FGH_UpDraw				; if it's moved up, branch
-
-		addi.w	#$00F0,d5				; increase Y down into lower void space
-
-
-
-FGH_UpDraw:
-
-		moveq	#$00,d7					; clear d7
-
-		move.b	(v_bg1_scroll_flags).w,d7			; load number of horizontal blocks to draw
-
-		bsr	HorizLoadBlocks				; draw horizontal blocks
-
-
-
-FGH_NoDraw:
-
-
-
-; ---------------------------------------------------------------------------
-
-; FG Vertical
-
-; ---------------------------------------------------------------------------
-
-
-
-		move.w	(v_screenposx).w,d4			; load X position
-
-		move.w	(v_screenposy).w,d5			; load Y position
-
-		add.w	d3,d5					; move Y back into void space
-
-		move.w	d4,d0					; copy X pos to d0
-
-		and.w	d3,d0					; keep in range
-
-		add.w	d3,d4					; move X back into void space
-
-		move.w	(LastFGXPos).w,d1			; load last X position
-
-		and.w	d3,d1					; keep in range
-
-		move.w	d0,(LastFGXPos).w			; update new last X position
-
-		sub.w	d1,d0					; minus last from new
-
-		beq	FGV_NoDraw				; if it hasn't moved, branch
-
-		bmi	FGV_LeftDraw				; if it's moved right, branch
-
-		addi.w	#$0150,d4				; increase X down into right void space
-
-
-
-FGV_LeftDraw:
-
-		moveq	#$00,d7					; clear d7
-
-		move.b	(v_bg1_scroll_flags+1).w,d7			; load number of vertical blocks to draw
-
-		bsr	VertiLoadBlocks				; draw vertical blocks
-
-
-
-FGV_NoDraw:
-
-
-
-; ---------------------------------------------------------------------------
-
-; Drawing the BG Tiles in void space
-
-; ---------------------------------------------------------------------------
-
-
-
-BGH_Draw:
-
-		lea	(v_lvllayout+$40).l,a4			; load BG layout space
-
-		move.w	#$6000,d6				; prepare VRAM plane address
-
-
-
-; ---------------------------------------------------------------------------
-
-; BG Horizontal
-
-; ---------------------------------------------------------------------------
-
-
-
-		move.w	(v_hscrolltablebuffer+2).w,d4			; load X position (From scroll buffer)
-
-		neg.w	d4					; reverse
-
-		subi.w	#$0010,d4				; move X back into void space
-
-		move.w	(v_bgscreenposy).w,d5			; load Y position
-
-		move.w	d5,d0					; copy Y pos to d0
-
-		and.w	d3,d0					; keep in range
-
-		add.w	d3,d5					; move Y back into void space
-
-		move.w	(LastBGYPos).w,d1			; load last Y position
-
-		and.w	d3,d1					; keep in range
-
-		move.w	d0,(LastBGYPos).w			; update new last Y position
-
-		sub.w	d1,d0					; minus last from new
-
-		beq	BGH_NoDraw				; if it hasn't moved, branch
-
-		bmi	BGH_UpDraw				; if it's moved up, branch
-
-		addi.w	#$00F0,d5				; increase Y down into lower void space
-
-		move.w	(v_hscrolltablebuffer+$3C2).w,d4			; load X position (From scroll buffer)
-
-		neg.w	d4					; reverse
-
-		add.w	d3,d4					; move X back into void space
-
-
-
-BGH_UpDraw:
-
-		moveq	#$00,d7					; clear d7
-
-		move.b	(v_bg2_scroll_flags).w,d7			; load number of horizontal blocks to draw
-
-		bsr	HorizLoadBlocks				; draw horizontal blocks
-
-
-
-BGH_NoDraw:
-
-
-
-; ---------------------------------------------------------------------------
-
-; BG Vertical
-
-; ---------------------------------------------------------------------------
-
-
-
-		move.w	(v_bgscreenposx).w,d0			; load X position
-
-		move.w	(v_bgscreenposy).w,d5			; load Y position
-
-		add.w	d3,d5					; move Y back into void space
-
-		move.w	(LastBGXPos).w,d1			; load last X position
-
-		move.w	d0,(LastBGXPos).w			; update new last X position
-
-		sub.w	d1,d0					; minus last from new
-
-		beq	BGV_NoDraw				; if it hasn't moved, branch
-
-		bmi	BGV_LeftDraw				; if it's moved right, branch
-
-		move.w	#$0150,d3				; set void space side to right
-
-
-
-BGV_LeftDraw:
-
-		lea	(v_hscrolltablebuffer+2).w,a3			; load scroll address
-
-		moveq	#$00,d7					; clear d7
-
-		move.b	(v_bg2_scroll_flags+1).w,d7			; load number of vertical blocks to draw
-
-		bsr	VertiLoadBlocksScroll			; draw vertical blocks using scroll
-
-
-
-BGV_NoDraw:
-
-		rts						; return
-
-
-
-; ===========================================================================
-
-; ---------------------------------------------------------------------------
-
-; Subroutine to load tiles from blocks to a buffer space
-
-; ---------------------------------------------------------------------------
-
-
-
-HorizLoadBlocks:
-
-		moveq	#$1E,d0					; prepare maximum number of blocks minus 1
-
-		sub.w	d7,d0					; subtract number of blocks to draw
-
-		move.w	d6,-(sp)				; store VRAM address
-
-		move.w	#$B000,d6				; prepare block address
-
-		move.w	d0,-(sp)				; store remaining blocks counter
-
-		move.w	d4,d0					; load X position
-
-		andi.w	#$01F0,d0				; keep in range
-
-		lsr.w	#$02,d0					; divide by 4 (every 10 pixels is 4 bytes of a double tile)
-
-		lea	(TileBuffer).w,a2			; load beginning of tile buffer
-
-		adda.w	d0,a2					; advance to correct tile buffer address
-
-		lea	$80(a2),a3				; ''
-
-
-
-HLB_NextBlock:
-
-		movea.w	d6,a1					; load block address
-
-		move.w	d4,d0					; load X position
-
-		lsr.w	#$08,d0					; divide by 100
-
-		andi.w	#$003F,d0				; keep in range
-
-		move.w	d5,d1					; load Y position
-
-		lsr.w	#$01,d1					; divide by 2 (100 to 80)
-
-		andi.w	#$0380,d1				; keep in range
-
-		or.w	d0,d1					; save X onto Y
-
-		moveq	#$FFFFFFFF,d0				; prepare RAM space FFFF????
-
-		move.b	(a4,d1.w),d0				; load chunk ID
-
-		beq.s	HLB_NullChunk				; if null, branch
-
-		subq.b	#$01,d0					; minus 1
-
-		andi.w	#$007F,d0				; keep in range
-
-		ror.w	#$07,d0					; multiply by 200
-
-		move.w	d4,d1					; load X position
-
-		lsr.w	#$03,d1					; divide by 8
-
-		andi.w	#$001E,d1				; keep in range of 20 in multiples of 2
-
-		move.w	d5,d2					; load Y position
-
-		add.w	d2,d2					; multiply by 2
-
-		andi.w	#$01E0,d2				; keep in range of 200 in multiples of 10
-
-		or.w	d2,d1					; save Y onto X
-
-		or.w	d1,d0					; save to chunk address
-
-		move.l	d0,a0					; set chunk address
-
-		move.w	(a0),d0					; load block ID
-
-		andi.w	#$03FF,d0				; clear flags
-
-		lsl.w	#$03,d0					; multiply by 8
-
-		adda.w	d0,a1					; advance to correct block address
-
-
-
-HLB_NullChunk:
-
-		move.l	(a1)+,d0				; load top two tiles
-
-		move.l	(a1)+,d1				; load bottom two tiles
-
-		btst	#$03,(a0)				; was the block mirrored?
-
-		beq	HLB_NoMirror				; if not, branch
-
-		eori.l	#$08000800,d0				; set mirror bits
-
-		eori.l	#$08000800,d1				; ''
-
-		swap	d0					; swap tiles over
-
-		swap	d1					; ''
-
-
-
-HLB_NoMirror:
-
-		btst	#$04,(a0)				; was the block flipped?
-
-		beq	HLB_NoFlip				; if not, branch
-
-		eori.l	#$10001000,d0				; set flip bits
-
-		eori.l	#$10001000,d1				; ''
-
-		exg	d0,d1					; swap tiles over
-
-
-
-HLB_NoFlip:
-
-		move.l	d0,(a2)+				; save top two tiles
-
-		move.l	d1,(a3)+				; save bottom two tiles
-
-		sub.w	d3,d4					; increase X position to next block
-
-		move.w	d4,d0					; copy to d0
-
-		andi.w	#$01F0,d0				; keep in range of the plane size
-
-		bne	HLB_NoEnd				; if it has not wrapped back to the beginning, branch
-
-		lea	(TileBuffer).w,a2			; reload tile buffer from beginning
-
-		lea	$80(a2),a3				; ''
-
-
-
-HLB_NoEnd:
-
-		dbf	d7,HLB_NextBlock			; repeat til done
-
-		move.w	(sp)+,d7				; load remaining blocks counter
-
-		bmi	HBL_NoClearBuffer			; if there's none, branch
-
-		moveq	#$00,d0					; clear d0
-
-
-
-HBL_ClearBuffer:
-
-		move.l	d0,(a2)+				; clear buffer
-
-		move.l	d0,(a3)+				; ''
-
-		dbf	d7,HBL_ClearBuffer			; repeat til done
-
-
-
-HBL_NoClearBuffer:
-
-		move.w	(sp)+,d6				; restore VRAM address
-
-		move.l	#$977F0000,d0				; prepare DMA source value
-
-		move.w	d5,d0					; load Y position
-
-		andi.w	#$00F0,d0				; keep in range
-
-		lsl.w	#$04,d0					; multiply by 10 (every 10 pixels is VRAM 0100+)
-
-		or.w	d6,d0					; set VRAM write bit
-
-		move.l	#((((((HBufferSize*$02)/$02)<<$08)&$FF0000)+(((HBufferSize*$02)/$02)&$FF))+$94009300),(a5) ; set DMA size
-
-		move.l	#((((((TileBuffer&$FFFFFF)/$02)<<$08)&$FF0000)+(((TileBuffer&$FFFFFF)/$02)&$FF))+$96009500),(a5) ; set DMA Source
-
-		move.l	d0,(a5)					; set DMA source/destination
-
-		move.w	#$0083,(a5)				; set DMA destination
-
-		rts						; return
-
-
-
-; ===========================================================================
-
-; ---------------------------------------------------------------------------
-
-; Subroutine to load tiles from blocks to a buffer space
-
-; ---------------------------------------------------------------------------
-
-
-
-VertiLoadBlocks:
-
-		move.w	d5,d0					; load Y position
-
-		andi.w	#$00F0,d0				; keep in range
-
-		lsr.w	#$02,d0					; divide by 4 (every 10 pixels is 4 bytes of a double tile)
-
-		lea	(TileBuffer).w,a2			; load beginning of tile buffer
-
-		adda.w	d0,a2					; advance to correct tile buffer address
-
-		lea	$80(a2),a3				; ''
-
-		move.w	d6,-(sp)				; store VRAM location
-
-		move.w	#$B000,d6				; prepare block address
-
-
-
-VLB_NextBlock:
-
-		movea.w	d6,a1					; load block address
-
-		move.w	d4,d0					; load X position
-
-		lsr.w	#$08,d0					; divide by 100
-
-		andi.w	#$003F,d0				; keep in range
-
-		move.w	d5,d1					; load Y position
-
-		lsr.w	#$01,d1					; divide by 2 (100 to 80)
-
-		andi.w	#$0380,d1				; keep in range
-
-		or.w	d0,d1					; save X onto Y
-
-		moveq	#$FFFFFFFF,d0				; prepare RAM space FFFF????
-
-		move.b	(a4,d1.w),d0				; load chunk ID
-
-		beq.s	VLB_NullChunk				; if null, branch
-
-		subq.b	#$01,d0					; minus 1
-
-		andi.w	#$007F,d0				; keep in range
-
-		ror.w	#$07,d0					; multiply by 200
-
-		move.w	d4,d1					; load X position
-
-		lsr.w	#$03,d1					; divide by 8
-
-		andi.w	#$001E,d1				; keep in range of 20 in multiples of 2
-
-		move.w	d5,d2					; load Y position
-
-		add.w	d2,d2					; multiply by 2
-
-		andi.w	#$01E0,d2				; keep in range of 200 in multiples of 10
-
-		or.w	d2,d1					; save Y onto X
-
-		or.w	d1,d0					; save to chunk address
-
-		move.l	d0,a0					; set chunk address
-
-		move.w	(a0),d0					; load block ID
-
-		andi.w	#$03FF,d0				; clear flags
-
-		lsl.w	#$03,d0					; multiply by 8
-
-		adda.w	d0,a1					; advance to correct block address
-
-
-
-VLB_NullChunk:
-
-		move.w	(a1)+,d0				; load left tile 1
-
-		move.w	(a1)+,d1				; load right tile 1
-
-		swap	d0					; send left
-
-		swap	d1					; ''
-
-		move.w	(a1)+,d0				; load left tile 2
-
-		move.w	(a1)+,d1				; load right tile 2
-
-		btst	#$03,(a0)				; was the block mirrored?
-
-		beq	VLB_NoMirror				; if not, branch
-
-		eori.l	#$08000800,d0				; set mirror bits
-
-		eori.l	#$08000800,d1				; ''
-
-		exg	d0,d1					; swap tiles over
-
-
-
-VLB_NoMirror:
-
-		btst	#$04,(a0)				; was the block flipped?
-
-		beq	VLB_NoFlip				; if not, branch
-
-		eori.l	#$10001000,d0				; set flip bits
-
-		eori.l	#$10001000,d1				; ''
-
-		swap	d0					; swap tiles over
-
-		swap	d1					; ''
-
-
-
-VLB_NoFlip:
-
-		move.l	d0,(a2)+				; save top two tiles
-
-		move.l	d1,(a3)+				; save bottom two tiles
-
-		sub.w	d3,d5					; increase Y position to next block
-
-		move.w	d5,d0					; copy to d0
-
-		andi.w	#$00F0,d0				; keep in range of the plane size
-
-		bne	VLB_NoEnd				; if it has not wrapped back to the beginning, branch
-
-		lea	(TileBuffer).w,a2			; reload tile buffer from beginning
-
-		lea	$80(a2),a3				; ''
-
-
-
-VLB_NoEnd:
-
-		dbf	d7,VLB_NextBlock			; repeat til done
-
-		move.w	(sp)+,d6				; restore VRAM location
-
-		move.l	#$977F0000,d0				; prepare DMA source value
-
-		move.w	d4,d0					; load X position
-
-		andi.w	#$01F0,d0				; keep in range
-
-		lsr.w	#$02,d0					; divide by 2 (every 10 pixels is VRAM 0002+)
-
-		or.w	d6,d0					; set VRAM write bit
-
-		move.w	#$8F80,(a5)				; set auto increment to 80 (next line)
-
-		move.l	#(((((VBufferSize/$02)<<$08)&$FF0000)+((VBufferSize/$02)&$FF))+$94009300),(a5) ; set DMA size
-
-		move.l	#((((((TileBufferA&$FFFFFF)/$02)<<$08)&$FF0000)+(((TileBufferA&$FFFFFF)/$02)&$FF))+$96009500),(a5) ; set DMA Source
-
-		move.l	d0,(a5)					; set DMA source/destination
-
-		move.w	#$0083,(a5)				; set DMA destination
-
-		addq.w	#$02,d0					; advance to tile on right in VRAM address
-
-		move.l	#(((((VBufferSize/$02)<<$08)&$FF0000)+((VBufferSize/$02)&$FF))+$94009300),(a5) ; set DMA size
-
-		move.l	#((((((TileBufferB&$FFFFFF)/$02)<<$08)&$FF0000)+(((TileBufferB&$FFFFFF)/$02)&$FF))+$96009500),(a5) ; set DMA Source
-
-		move.l	d0,(a5)					; set DMA source/destination
-
-		move.w	#$0083,(a5)				; set DMA destination
-
-		move.w	#$8F02,(a5)				; set auto increment back to 02 (word)
-
-		rts						; return
-
-
-
-; ===========================================================================
-
-; ---------------------------------------------------------------------------
-
-; Subroutine to load tiles from blocks to a buffer space
-
-; ---------------------------------------------------------------------------
-
-
-
-VertiLoadBlocksScroll:
-
-		move.l	#$00800000,a2				; prepare a2 as line shift register value
-
-		move.b	d5,d0					; load Y position
-
-		andi.w	#$000F,d0				; get only within the block position
-
-		add.b	d0,d0					; multiply by 4 (size of scanline data)
-
-		add.b	d0,d0					; ''
-
-		move.w	(a3),d4					; load first scanline position (for first block only)
-
-		suba.w	d0,a3					; shift scroll buffer address to correct beginning scanline of blocks
-
-		bra	VLBS_FirstBlock				; continue
-
-
-
-VLBS_NextBlock:
-
-		move.w	(a3),d4					; load scroll value
-
-
-
-VLBS_FirstBlock:
-
-		lea	$40(a3),a3				; advance to next 10 pixel block space
-
-		neg.w	d4					; reverse scroll value
-
-		add.w	d3,d4					; advance to correct side of screen
-
-		lea	(v_16x16).w,a1			; load block address
-
-		move.w	d4,d0					; load X position
-
-		lsr.w	#$08,d0					; divide by 100
-
-		andi.w	#$003F,d0				; keep in range
-
-		move.w	d5,d1					; load Y position
-
-		lsr.w	#$01,d1					; divide by 2 (100 to 80)
-
-		andi.w	#$0380,d1				; keep in range
-
-		or.w	d0,d1					; save X onto Y
-
-		moveq	#$FFFFFFFF,d0				; prepare RAM space FFFF????
-
-		move.b	(a4,d1.w),d0				; load chunk ID
-
-		beq.s	VLBS_NullChunk				; if null, branch
-
-		subq.b	#$01,d0					; minus 1
-
-		andi.w	#$007F,d0				; keep in range
-
-		ror.w	#$07,d0					; multiply by 200
-
-		move.w	d4,d1					; load X position
-
-		lsr.w	#$03,d1					; divide by 8
-
-		andi.w	#$001E,d1				; keep in range of 20 in multiples of 2
-
-		move.w	d5,d2					; load Y position
-
-		add.w	d2,d2					; multiply by 2
-
-		andi.w	#$01E0,d2				; keep in range of 200 in multiples of 10
-
-		or.w	d2,d1					; save Y onto X
-
-		or.w	d1,d0					; save to chunk address
-
-		move.l	d0,a0					; set chunk address
-
-		move.w	(a0),d0					; load block ID
-
-		andi.w	#$03FF,d0				; clear flags
-
-		lsl.w	#$03,d0					; multiply by 8
-
-		adda.w	d0,a1					; advance to correct block ID
-
-
-
-VLBS_NullChunk:
-
-		move.w	d4,d2					; load X position
-
-		andi.w	#$01F0,d2				; keep within 200 pixels in multiples of 10
-
-		lsr.w	#$02,d2					; divide by 4
-
-		move.w	d5,d1					; load Y position
-
-		andi.w	#$00F0,d1				; keep within 100 pixels in multiples of 10
-
-		lsl.w	#$04,d1					; multiply by 10
-
-		or.w	d1,d2					; save Y onto X
-
-		or.w	d6,d2					; save VRAM address
-
-		swap	d2					; send left
-
-		move.w	#$0003,d2				; set VRAM address
-
-		move.l	(a1)+,d0				; load top two tiles
-
-		move.l	(a1)+,d1				; load bottom two tiles
-
-		btst	#$03,(a0)				; was the block mirrored?
-
-		beq	VLBS_NoMirror				; if not, branch
-
-		eori.l	#$08000800,d0				; set mirror bits
-
-		eori.l	#$08000800,d1				; ''
-
-		swap	d0					; swap tiles over
-
-		swap	d1					; ''
-
-
-
-VLBS_NoMirror:
-
-		btst	#$04,(a0)				; was the block flipped?
-
-		beq	VLBS_NoFlip				; if not, branch
-
-		eori.l	#$10001000,d0				; set flip bits
-
-		eori.l	#$10001000,d1				; ''
-
-		exg	d0,d1					; swap tiles over
-
-
-
-VLBS_NoFlip:
-
-		move.l	d2,(a5)					; set VDP VRAM address
-
-		move.l	d0,(a6)					; save top two tiles
-
-		add.l	a2,d2					; advance to next line
-
-		move.l	d2,(a5)					; set VDP VRAM address
-
-		move.l	d1,(a6)					; save bottom two tiles
-
-		addi.w	#$0010,d5				; increase Y position to next block
-
-		dbf	d7,VLBS_NextBlock			; repeat til done
-
-		rts						; return
-
-
-
-; ===========================================================================
-
-; ---------------------------------------------------------------------------
-
-; Subroutine to	draw the entire level tiles on screen
-
-; ---------------------------------------------------------------------------
-
-
-
-LoadTilesFromStart:
-
-		lea	(v_lvllayout).l,a4			; load FG layout space
-
-		move.w	#$4000,d6				; prepare VRAM plane address
-
-		move.w	(v_screenposx).w,d4			; load X position
-
-		move.w	(v_screenposy).w,d5			; load Y position
-
-		bsr	LoadFGTilesFromStart			; draw FG
-
-		lea	(v_lvllayout+$40).l,a4			; load BG layout space
-
-		move.w	#$6000,d6				; prepare VRAM plane address
-
-		move.w	(v_bgscreenposx).w,d4			; load BG X position
-
-		move.w	(v_bgscreenposy).w,d5			; load BG Y position
-
-
-
-; ---------------------------------------------------------------------------
-
-; Subroutine to	draw only the entire BG tiles
-
-; ---------------------------------------------------------------------------
-
-
-
-LoadBGTilesFromStart:
-
-		lea	(vdp_data_port).l,a6				; load VDP data port
-
-		lea	$04(a6),a5				; load VDP address port
-
-		moveq	#$FFFFFFF0,d3				; prepare -10
-
-		add.w	d3,d4					; move X and Y positions back into void space
-
-		add.w	d3,d5					; ''
-
-		moveq	#$0F,d7					; set number of horizontal lines to draw
-
-		lea	(v_hscrolltablebuffer+2).w,a3			; load scroll address
-
-		move.b	d5,d0					; load Y position
-
-		andi.w	#$000F,d0				; get only within the block position
-
-		add.b	d0,d0					; multiply by 4 (size of scanline data)
-
-		add.b	d0,d0					; ''
-
-		move.w	(a3),d4					; load first scanline position (for first block only)
-
-		suba.w	d0,a3					; shift scroll buffer address to correct beginning scanline of blocks
-
-		bra	DABG_FirstBlock
-
-
-
-DABG_NextLine:
-
-		move.w	(a3),d4					; load scroll value
-
-
-
-DABG_FirstBlock:
-
-		lea	$40(a3),a3				; advance to next 10 pixel block space
-
-		neg.w	d4					; reverse scroll value
-
-		add.w	d3,d4					; advance to correct side of screen (left side)
-
-		movem.w	d4/d7/a3,-(sp)				; store X pos and counter
-
-		moveq	#$1F,d7					; set repeat times (number of blocks) (20 blocks)
-
-		bsr	HorizLoadBlocks				; draw horizontal blocks
-
-		movem.w	(sp)+,d4/d7/a3				; restore X pos and counter
-
-		sub.w	d3,d5					; increase Y pos down
-
-		dbf	d7,DABG_NextLine			; repeat til all lines are done
-
-		rts						; return
-
-
-
-; ---------------------------------------------------------------------------
-
-; Subroutine to	draw only the entire FG tiles
-
-; ---------------------------------------------------------------------------
-
-
-
-LoadFGTilesFromStart:
-
-		lea	(vdp_data_port).l,a6				; load VDP data port
-
-		lea	$04(a6),a5				; load VDP address port
-
-		moveq	#$FFFFFFF0,d3				; prepare -10
-
-		add.w	d3,d4					; move X and Y positions back into void space
-
-		add.w	d3,d5					; ''
-
-		moveq	#$0F,d7					; set number of horizontal lines to draw
-
-
-
-DAFG_NextLine:
-
-		movem.w	d4/d7,-(sp)				; store X pos and counter
-
-		moveq	#$1F,d7					; set repeat times (number of blocks) (20 blocks)
-
-		bsr	HorizLoadBlocks				; draw horizontal blocks
-
-		movem.w	(sp)+,d4/d7				; restore X pos and counter
-
-		sub.w	d3,d5					; increase Y pos down
-
-		dbf	d7,DAFG_NextLine			; repeat til all lines are done
-
-		rts						; return
-
-
+	include	"loadtiles.asm"
 
 ; ===========================================================================
 
@@ -9275,6 +8116,22 @@ SoundDriver:	include "s1.sounddriver.asm"
 
 ; end of 'ROM'
 		even
+
+; ==============================================================
+; --------------------------------------------------------------
+; Debugging modules
+; --------------------------------------------------------------
+
+   include   "ErrorHandler.asm"
+
+; --------------------------------------------------------------
+; WARNING!
+;	DO NOT put any data from now on! DO NOT use ROM padding!
+;	Symbol data should be appended here after ROM is compiled
+;	by ConvSym utility, otherwise debugger modules won't be able
+;	to resolve symbol names.
+; --------------------------------------------------------------
+
 EndOfRom:
 
 		END

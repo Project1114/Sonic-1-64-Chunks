@@ -11,10 +11,19 @@ v_lvllayout:		ds.b	$8000		; level and background layouts
 v_collision1:		ds.b	$300
 v_collision2:		ds.b	$300
 
-			ds.b	$1200		; unused
-TileBufferA:		ds.b	$80				; Entire Buffer
-TileBuffer	=	TileBufferA				; First half of buffer
-TileBufferB:		ds.b	$80				; Second half of buffer	
+			ds.b	$E00		; unused
+
+vHBufferFG:		ds.b $100				; Entire Buffer
+vVBufferFG:		ds.b $100				; Entire Buffer
+vVBufferFGA	=	vVBufferFG				; First half of buffer
+vVBufferFGB	=	vVBufferFG+$80				; Second half of buffer
+
+vHBufferBG:		ds.b $100				; Entire Buffer
+vVBufferBG:		ds.b $100				; Entire Buffer
+vVBufferBGA	=	vVBufferBG				; First half of buffer
+vVBufferBGB	=	vVBufferBG+$80				; Second half of buffer
+
+vVBufferBGDMA:		ds.b $100				; Entire Buffer
 
 v_ngfx_buffer:		ds.b	$200		; Nemesis graphics decompression buffer
 v_ngfx_buffer_end:
@@ -309,10 +318,10 @@ v_opl_screen:		ds.w	1		; ObjPosLoad - screen variable
 v_opl_data:		ds.b	$10		; ObjPosLoad - data buffer
 v_ssangle:		ds.w	1		; Special Stage angle
 v_ssrotate:		ds.w	1		; Special Stage rotation speed
-LastFGXPos:		ds.w	2
-LastFGYPos:		ds.w	2
-LastBGXPos:		ds.w	2
-LastBGYPos:		ds.w	2
+vLastFGXPos:		ds.w	2
+vLastFGYPos:		ds.w	2
+vLastBGXPos:		ds.w	2
+vLastBGYPos:		ds.w	2
 			ds.b	4		; unused
 v_btnpushtime1:		ds.w	1		; button push duration - in level
 v_btnpushtime2:		ds.w	1		; button push duration - in demo
@@ -449,7 +458,16 @@ v_oscillate:		ds.w	1		; oscillation bitfield
 v_timingandscreenvariables:
 v_timingvariables:
 			ds.b	$40		; values which oscillate - for swinging platforms, et al
-			ds.b	$20		; unused
+
+vDrawFGX:		ds.w 1
+vDrawFGY:		ds.w 1
+vDrawBGY:		ds.w 1
+vHDrawFG:		ds.w 1
+vVDrawFG:		ds.w 1
+vHDrawBG:		ds.w 1
+vVDrawBG:		ds.w 1
+
+			ds.b	$12		; unused
 v_ani0_time:		ds.b	1		; synchronised sprite animation 0 - time until next frame (used for synchronised animations)
 v_ani0_frame:		ds.b	1		; synchronised sprite animation 0 - current frame
 v_ani1_time:		ds.b	1		; synchronised sprite animation 1 - time until next frame
