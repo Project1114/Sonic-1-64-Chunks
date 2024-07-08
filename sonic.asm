@@ -7709,7 +7709,7 @@ Blk16_LZ:	binclude	"map16/LZ.eni"
 		even
 Nem_LZ:		binclude	"artnem/8x8 - LZ.nem"	; LZ primary patterns
 		even
-Blk128_LZ:	binclude	"map128/LZ.kos"
+Blk128_LZ:	binclude	"map128/LZ.unc"
 		even
 Blk16_MZ:	binclude	"map16/MZ.eni"
 		even
